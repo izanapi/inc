@@ -1,0 +1,5 @@
+# Lumina artwork
+
+Generated using the built-in ImageGen tool. Asset: `dist/assets/lumina.png`.
+
+Use case: stylized-concept. Original anime character art for Japanese cosmic incremental game STARFORGE; illustration asset, not UI. One landscape 1536×1024 image with two equal vertical portrait panels and no visible border. SAME clearly adult beautiful female pilot, mid twenties, long silver-white hair with pink tips, cyan eyes, confident friendly smile, fully clothed black and white futuristic pilot jacket with neon cyan/pink trim. Left: normal cheerful waist-up pilot against dark navy starfield. Right: awakened same character with elaborate celestial jacket, radiant gold star accessories, flowing hair, celebratory cosmic light. Polished premium anime game splash illustration; crisp expressive faces, detailed hair and garments; rich navy, cyan, magenta and gold. Characters centered separately at x=25% and x=75%, faces within upper third, independently usable vertical crops, fill image edges. No text, letters, logos, watermark, borders, or UI.
