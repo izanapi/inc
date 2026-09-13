@@ -1,14 +1,60 @@
 <!doctype html>
 <html lang="ja">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080b19"><meta name="description" content="美少女パイロットと星を掘る、宇宙スロット・インクリメンタル。設備を育てて銀河を越えよう。"><title>STARFORGE — 星屑ときみの航海</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='.9em' font-size='58'%3E✦%3C/text%3E%3C/svg%3E"><link rel="stylesheet" href="style.css"></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#070907">
+  <meta name="description" content="90秒で怪電波を採取する、一画面の短波チューニングゲーム。">
+  <title>DEAD AIR — 03:17</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23070907'/%3E%3Cpath d='M8 34h9l4-17 7 32 8-27 5 12h15' fill='none' stroke='%23d8ff4f' stroke-width='4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
 <body>
-<header><a class="logo" href="./"><span>✦</span> STARFORGE <small>星屑ときみの航海</small></a><div class="header-actions"><span id="save-status">オートセーブ</span><button id="sound" class="icon-button" aria-label="効果音を切り替え">音 OFF</button><button id="settings" class="icon-button">設定</button></div></header>
-<main>
-<div class="voyage"><span class="eyebrow">DEEP SPACE EXPEDITION</span><span id="sector">01 / 星屑のゆりかご</span><span class="live">航行中</span></div>
-<section class="wallet" aria-label="資源"><div><span class="label">✧ スターダスト</span><strong id="dust">0</strong><small id="rate">+0 / 秒</small></div><div><span class="label">✦ 生涯獲得</span><strong id="lifetime">0</strong><small>この航海の、すべての輝き</small></div><div><span class="label">◈ 星の記憶</span><strong id="memory">0</strong><small id="multiplier">恒久倍率 ×1.00</small></div></section>
-<div class="game-layout">
-<aside class="companion panel"><div class="pilot-art" id="pilot-art"><div class="art-glow"></div><span class="pilot-badge">YOUR PARTNER <b>01</b></span><div class="pilot-name"><span>STELLAR NAVIGATOR</span><h1>ルミナ <small>LUMINA</small></h1><p id="pilot-title">星を夢見る航海士</p></div></div><div class="companion-body"><div class="bond-row"><b id="bond-label">絆 Lv.1</b><span id="bond-next">0 / 20</span></div><div class="progress"><i id="bond-bar"></i></div><p class="speech" id="speech">「やっと会えたね、船長。あの星の向こうまで、一緒に行こう！」</p><button id="skill" class="secondary full">✧ 星のエール <span>20秒間 獲得量 ×3</span></button><small id="skill-status">絆 Lv.3 で解放 · スピンで絆が育ちます</small></div></aside>
-<section class="center-column"><div class="machine panel"><div class="section-title"><div><span class="eyebrow">STARDUST REACTOR</span><h2>星屑リアクター</h2></div><span class="pill">消費なし ∞</span></div><div class="machine-top"><span id="spin-power">採掘力 10</span><span id="spins">SPIN 0000</span></div><div class="reels" id="reels" aria-label="スロット結果"><div class="reel">✧</div><div class="reel">⬡</div><div class="reel">✦</div></div><div class="win-area" aria-live="polite"><span id="result-label">星を回そう。</span><strong id="win">EVERY SPIN, A NEW STAR.</strong></div><div class="fever-heading"><span>✷ OVERDRIVE</span><span id="fever-label">0 / 30</span></div><div class="progress fever"><i id="fever-bar"></i></div><p class="hint" id="fever-hint">30スピンごとに、次の5回の報酬が5倍！</p><button class="spin-button" id="spin">SPIN <span>星を掘る</span><kbd>SPACE</kbd></button><div class="machine-controls"><button id="auto" class="toggle" aria-pressed="false">自動スピン OFF</button><button id="odds" class="text-button">役・確率を見る ↗</button></div></div><div class="panel mission"><div><span class="eyebrow">NEXT MISSION</span><h3 id="mission-title">最初の星を見つけよう</h3><p id="mission-description">スピンを5回まわす</p></div><button id="claim" class="secondary">0 / 5</button></div><div class="log" id="log" aria-label="航海ログ"><span>✦ 航海ログ</span><p>ルミナが乗船しました。冒険を始めよう。</p></div></section>
-<section class="workshop panel"><div class="section-title"><div><span class="eyebrow">BUILD YOUR CONSTELLATION</span><h2>星を育てる</h2></div><span class="tiny" id="owned-total">0 設備</span></div><nav class="tabs" aria-label="強化メニュー"><button data-tab="build" class="active">設備</button><button data-tab="research">研究</button><button data-tab="collection">図鑑</button><button data-tab="rebirth">転生</button></nav><div id="tab-content"></div></section>
-</div><footer><span>小さな一回が、銀河になる。</span><span>プレイ無料 · 課金なし · 端末内保存</span></footer>
-</main><div id="particles" aria-hidden="true"></div><div id="toast" role="status"></div><dialog id="modal"><div id="modal-content"></div><button id="close-modal" class="secondary full">閉じる</button></dialog><script type="module" src="app.js"></script></body></html>
+  <main id="game" aria-label="DEAD AIR 短波観測ゲーム">
+    <canvas id="scope"></canvas>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="hud top-hud">
+      <div class="brand"><b>DEAD AIR</b><span>UNLICENSED NIGHT MONITOR</span></div>
+      <div class="clock"><span>SESSION</span><b id="time">90.0</b></div>
+      <div class="score"><span>RECOVERED</span><b id="score">000000</b></div>
+    </header>
+
+    <section class="readout" aria-live="polite">
+      <span id="band">BAND 06</span>
+      <strong><i id="frequency">6.240</i> MHz</strong>
+      <div class="lock-line"><span>LOCK</span><div><i id="lock-bar"></i></div><b id="lock-label">SEARCHING</b></div>
+    </section>
+
+    <section class="transcript" aria-live="polite">
+      <span>LAST TRANSMISSION</span>
+      <p id="message">[ NO CARRIER ]</p>
+    </section>
+
+    <footer class="hud bottom-hud">
+      <div class="hint"><b>← DRAG TO TUNE →</b><span>信号に合わせ続けて採取</span></div>
+      <div class="noise"><span>INTERFERENCE</span><div><i id="noise-bar"></i></div></div>
+      <button id="purge" disabled><span>PURGE</span><small>SPACE</small></button>
+      <button id="sound" aria-label="音声の切り替え">AUDIO <b>ON</b></button>
+    </footer>
+
+    <div id="flash" aria-hidden="true"></div>
+    <div id="overlay" class="overlay open">
+      <div class="case-number">CASE // 0317–K</div>
+      <h1>DEAD<br><em>AIR</em></h1>
+      <p>午前3時17分。放送の終わった帯域から、<br>存在しない町の声を回収してください。</p>
+      <button id="start">BEGIN MONITORING <span>90 SEC</span></button>
+      <small>指・マウスで周波数を動かす / ← → キー / SPACEで混信除去</small>
+    </div>
+
+    <div id="result" class="overlay">
+      <div class="case-number">MONITORING COMPLETE</div>
+      <h2 id="rank">RANK C</h2>
+      <div class="result-grid"><span>RECOVERED<b id="final-score">0</b></span><span>SIGNALS<b id="final-signals">0</b></span><span>BEST<b id="best">0</b></span></div>
+      <p id="verdict">記録には、まだ何も残っていない。</p>
+      <button id="restart">MONITOR AGAIN</button>
+    </div>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

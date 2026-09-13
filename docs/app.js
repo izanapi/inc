@@ -1,68 +1,57 @@
-import {fresh,restore,BUILDINGS,RESEARCH,OUTCOMES,SECTORS,bondLevel,globalMult,power,rate,cost,buy,spin,autoInterval,tick,offline,useSkill,prestigeGain,prestige,mission,claim,sector} from './engine.js';
-const $=s=>document.querySelector(s), KEY='starforge-save-v1';
-let state=fresh(),busy=false,tab='build',shopSignature='',last=Date.now(),autoAt=0,audio,toastTimer,saveFailed=false;
-const fmt=n=>{if(n<1000)return Math.floor(n).toLocaleString('ja-JP');const units=['K','M','B','T','Qa','Qi','Sx','Sp','Oc','No'];const e=Math.floor(Math.log10(n)/3);return e>units.length?n.toExponential(2):(n/1000**e).toFixed(n/1000**e<10?2:1)+units[e-1];};
-function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3500);}
-function log(message){$('#log p').textContent=message;}
-function save(){try{state.savedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(state));$('#save-status').textContent='セーブ済み';saveFailed=false;}catch{$('#save-status').textContent='保存できません';if(!saveFailed)toast('自動保存できません。設定からセーブを書き出してください。');saveFailed=true;}}
-function modal(html){$('#modal-content').innerHTML=html;if(!$('#modal').open)$('#modal').showModal();}
-$('#close-modal').onclick=()=>$('#modal').close();
-$('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const r=$('#modal').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#modal').close();}});
-try{const raw=localStorage.getItem(KEY);if(raw){state=restore(JSON.parse(raw));const away=offline(state);if(away.seconds>60&&away.reward>0)setTimeout(()=>modal(`<span class="eyebrow">WELCOME BACK, CAPTAIN</span><h2>おかえり、船長。</h2><p>「お留守の間も、ちゃんと星を集めておいたよ！」</p><h2 style="color:var(--cyan)">+${fmt(away.reward)} ✧</h2><p>${Math.floor(away.seconds/60)} 分間の設備生産。最大8時間分まで蓄積します。</p>`),400);}}catch{toast('セーブを読み込めませんでした。新しい航海を開始します。');}
-$('#pilot-art').classList.add('loaded');
-function tone(win=false){if(!state.sound)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume();const now=audio.currentTime;[0,1,2].forEach((_,i)=>{const osc=audio.createOscillator(),gain=audio.createGain();osc.type='sine';osc.frequency.value=(win?523:261)*[1,1.25,1.5][i];gain.gain.setValueAtTime(.035,now+i*.075);gain.gain.exponentialRampToValueAtTime(.001,now+.25+i*.075);osc.connect(gain);gain.connect(audio.destination);osc.start(now+i*.075);osc.stop(now+.3+i*.075);});}catch{}}
-function celebrate(big){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;const r=$('#reels').getBoundingClientRect();for(let i=0;i<(big?32:12);i++){const el=document.createElement('span');el.className='spark';el.textContent=['✦','✧','·'][i%3];el.style.left=r.left+r.width/2+'px';el.style.top=r.top+r.height/2+'px';el.style.setProperty('--dx',(Math.random()-.5)*(big?650:350)+'px');el.style.setProperty('--dy',(Math.random()-.6)*500+'px');$('#particles').append(el);setTimeout(()=>el.remove(),1250);}}
-function render(){
- $('#dust').textContent=fmt(state.dust);$('#lifetime').textContent=fmt(state.total);$('#rate').textContent=`+${fmt(rate(state))} / 秒`;$('#memory').textContent=fmt(state.memories);$('#multiplier').textContent=`恒久倍率 ×${(1+state.memories*.15).toFixed(2)}`;
- const area=sector(state);$('#sector').textContent=`0${area+1} / ${SECTORS[area]}`;$('#spin-power').textContent=`採掘力 ${fmt(power(state))}`;$('#spins').textContent=`SPIN ${String(state.spins).padStart(4,'0')}`;
- const level=bondLevel(state),start=20*(level-1)**2,end=20*level**2;
- $('#bond-label').textContent=`絆 Lv.${level}`;$('#bond-next').textContent=level===100?'MAX':`${fmt(state.bond-start)} / ${fmt(end-start)}`;$('#bond-bar').style.width=(level===100?100:100*(state.bond-start)/(end-start))+'%';
- $('#pilot-art').classList.toggle('awakened',level>=10);$('#pilot-title').textContent=level>=10?'覚醒 · 星を紡ぐ航海士':'星を夢見る航海士';
- const now=Date.now(),active=now<state.skillUntil,cooldown=Math.max(0,Math.ceil((state.skillReady-now)/1000));
- $('#skill').disabled=level<3||cooldown>0;$('#skill-status').textContent=level<3?'絆 Lv.3 で解放 · スピンで絆が育ちます':active?`星のエール発動中！ あと ${Math.ceil((state.skillUntil-now)/1000)} 秒`:cooldown?`再使用まで ${cooldown} 秒`:'準備完了 · スピン報酬を3倍に！';
- document.body.classList.toggle('overdrive',state.feverLeft>0);$('#fever-label').textContent=state.feverLeft?`報酬 ×5 · 残り ${state.feverLeft} 回`:`${state.fever} / 30`;$('#fever-bar').style.width=(state.feverLeft?100:state.fever/30*100)+'%';$('#fever-hint').textContent=`大当たり保証まで、あと ${100-state.pity} 回 · 30回ごとに5倍フィーバー`;
- $('#auto').disabled=state.research[1]<1;$('#auto').textContent=state.research[1]<1?'自動スピン：研究で解放':`自動スピン ${state.auto?'ON':'OFF'}`;$('#auto').setAttribute('aria-pressed',String(state.auto));$('#sound').textContent=`音 ${state.sound?'ON':'OFF'}`;
- const m=mission(state);$('#mission-title').textContent=m.title;$('#mission-description').textContent=m.description;$('#claim').disabled=m.value<m.target;$('#claim').textContent=m.value>=m.target?`+${fmt(m.reward*globalMult(state))} 受取`:`${fmt(m.value)} / ${fmt(m.target)}`;$('#owned-total').textContent=state.buildings.reduce((a,b)=>a+b,0)+' 設備';renderShop();
+import {createState,setTuner,step,purge,frequency,rank} from './engine.js';
+
+const $=selector=>document.querySelector(selector);
+const canvas=$('#scope'),ctx=canvas.getContext('2d',{alpha:false});
+const els={time:$('#time'),score:$('#score'),frequency:$('#frequency'),lock:$('#lock-bar'),lockLabel:$('#lock-label'),noise:$('#noise-bar'),message:$('#message'),purge:$('#purge'),overlay:$('#overlay'),result:$('#result'),rank:$('#rank'),finalScore:$('#final-score'),finalSignals:$('#final-signals'),best:$('#best'),verdict:$('#verdict'),sound:$('#sound')};
+let state=createState(),playing=false,last=performance.now(),audio=null,soundOn=true,stars=[];
+
+function resize(){
+  const dpr=Math.min(devicePixelRatio||1,2),w=innerWidth,h=innerHeight;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);
+  stars=Array.from({length:60},()=>({x:Math.random(),y:Math.random(),a:Math.random()}));
 }
-function renderShop(){const signature=JSON.stringify([tab,state.buildings,state.research,state.collection,state.rebirths,prestigeGain(state),bondLevel(state)]);
- if(signature!==shopSignature){shopSignature=signature;const target=$('#tab-content');
- if(tab==='build'||tab==='research'){
- const list=tab==='build'?BUILDINGS:RESEARCH;
- target.innerHTML=`<p class="shop-intro">${tab==='build'?'設備は留守中も生産。各25基ごとに、その設備の生産が2倍。':'少しの研究で、大きな一回に。'}</p><div class="shop-list">${list.map((b,i)=>{const n=state[tab==='build'?'buildings':'research'][i];return `<div class="purchase"><span class="item-icon">${b.icon}</span><div class="item-info"><h3>${b.name}<span class="count">${tab==='build'?'×':'Lv.'}${n}</span></h3><p>${b.desc}</p>${tab==='build'?`<small>基礎 +${fmt(b.rate)} / 秒${n>=25?' · 25基ボーナス ×'+2**Math.floor(n/25):''}</small>`:''}</div><button class="buy" data-buy="${i}" aria-label="${b.name}を強化">${tab==='research'&&n>=b.max?'MAX':fmt(cost(state,tab,i))}<span>✧</span></button></div>`;}).join('')}</div><div class="discovery">${tab==='build'?'✧ 設備を増やすと、手動スピンの採掘力も上がります。':'♡ 絆 Lv.3：星のエール / Lv.10：ルミナ覚醒<br>⟳ 自動スピンはゲームを開いている間に作動します。'}</div>`;
- }else if(tab==='collection'){
- target.innerHTML=`<p class="shop-intro">星との出会いを記録。転生しても、この記憶は消えない。</p><div class="collection-grid">${OUTCOMES.map((o,i)=>`<div class="collect-card ${state.collection[i]?'':'locked'}"><b>${state.collection[i]?o.symbols[0]:'?'}</b><h3>${state.collection[i]?o.name:'未発見の輝き'}</h3><p>報酬 ×${o.mult} · ${fmt(state.collection[i])} 回</p></div>`).join('')}</div><div class="discovery">ルミナの覚醒まで：絆 Lv.${bondLevel(state)} / 10<br>絆による全生産ボーナス +${((bondLevel(state)-1)*3)}%</div>`;
- }else{target.innerHTML=`<div class="rebirth-card"><div class="orb">◈</div><span class="eyebrow">BEYOND THE STARS</span><h3>新しい宇宙へ</h3><p>いまの設備と研究を星の記憶に変え、<br>もっと遠くへ届く航海を。</p><strong>+${fmt(prestigeGain(state))} 星の記憶</strong><p>記憶1つにつき、すべての獲得量 +15%。<br>絆・図鑑・星の記憶は引き継がれます。</p><button class="secondary full" id="rebirth" ${prestigeGain(state)<1?'disabled':''}>${prestigeGain(state)<1?'周回獲得 100K で解放':'転生する'}</button><p>これまでの転生 ${state.rebirths} 回</p></div>`;}
- }
- document.querySelectorAll('[data-buy]').forEach(el=>{const i=+el.dataset.buy;el.disabled=state.dust<cost(state,tab,i)||(tab==='research'&&state.research[i]>=RESEARCH[i].max)||(tab==='build'&&state.buildings[i]>=10000);});
+addEventListener('resize',resize);resize();
+
+function initAudio(){
+  if(audio)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  const ac=new AC(),master=ac.createGain(),filter=ac.createBiquadFilter();master.gain.value=.15;filter.type='bandpass';filter.Q.value=7;filter.frequency.value=1200;filter.connect(master).connect(ac.destination);
+  const buffer=ac.createBuffer(1,ac.sampleRate*2,ac.sampleRate),data=buffer.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+  const noise=ac.createBufferSource();noise.buffer=buffer;noise.loop=true;const ng=ac.createGain();ng.gain.value=.055;noise.connect(ng).connect(filter);noise.start();
+  const osc=ac.createOscillator(),og=ac.createGain();osc.type='sine';og.gain.value=.035;osc.connect(og).connect(master);osc.start();audio={ac,master,filter,osc,og};
 }
-async function doSpin(){if(busy||$('#modal').open)return;busy=true;$('#spin').disabled=true;$('#reels').classList.add('rolling');$('#reels').classList.remove('bigwin');
- const level=bondLevel(state),result=spin(state),outcome=OUTCOMES[result.index];save();
- const reels=[...document.querySelectorAll('.reel')],reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
- for(let i=0;i<3;i++){reels[i].textContent='✧';}
- const timer=reduced?null:setInterval(()=>reels.forEach(el=>{el.textContent=['✧','◈','✺','⬡','✦'][Math.floor(Math.random()*5)];}),70);
- await new Promise(r=>setTimeout(r,reduced?50:540));if(timer)clearInterval(timer);reels.forEach((el,i)=>el.textContent=outcome.symbols[i]);$('#reels').classList.remove('rolling');
- $('#result-label').textContent=outcome.name+(result.boosted?' · OVERDRIVE':'');$('#win').textContent=`+${fmt(result.reward)} ✧`;tone(result.index>=2);
- if(result.index>=2){celebrate(result.index>=3);$('#reels').classList.add('bigwin');log(`${outcome.name}！ +${fmt(result.reward)} スターダスト`);}
- if(result.index===4)$('#speech').textContent='「わあっ、銀河が全部きらきらしてる！ 船長、今の見た！？」';
- else if(bondLevel(state)>level){$('#speech').textContent=bondLevel(state)>=10?'「きみと来たから、この光に届いたんだよ。これからもずっと、一緒に。」':'「また少し、息がぴったりになったね。次の星も一緒に見つけよう！」';toast(`絆 Lv.${bondLevel(state)}！ 全獲得量がアップ`);}
- else if(state.spins%12===0)$('#speech').textContent=['「星ってね、ひとつずつ違う色をしてるんだよ。」','「ちょっと休んでも大丈夫。ドローンたちは働き者だから！」','「船長となら、銀河の向こうも怖くないね。」','「次はどんな星に会えるかな。楽しみ！」'][Math.floor(state.spins/12)%4];
- render();busy=false;$('#spin').disabled=false;
+function audioUpdate(){if(!audio)return;const now=audio.ac.currentTime;audio.filter.frequency.setTargetAtTime(300+state.tuner*3300,now,.04);audio.osc.frequency.setTargetAtTime(70+state.tuner*210+(state.lock>.2?state.lock*80:0),now,.04);audio.master.gain.setTargetAtTime(soundOn?(playing?.13:.03):0,now,.05);}
+function ping(rare=false){if(!audio||!soundOn)return;const now=audio.ac.currentTime;[0,rare?7:12,rare?12:19].forEach((semi,i)=>{const o=audio.ac.createOscillator(),g=audio.ac.createGain();o.type=rare?'triangle':'sine';o.frequency.value=220*2**(semi/12);g.gain.setValueAtTime(.0001,now+i*.08);g.gain.exponentialRampToValueAtTime(.16,now+i*.08+.012);g.gain.exponentialRampToValueAtTime(.0001,now+i*.08+.55);o.connect(g).connect(audio.master);o.start(now+i*.08);o.stop(now+i*.08+.6);});}
+
+function start(){state=createState();playing=true;last=performance.now();els.overlay.classList.remove('open');els.result.classList.remove('open');initAudio();audio?.ac.resume();updateHud();}
+$('#start').onclick=start;$('#restart').onclick=start;
+els.sound.onclick=()=>{soundOn=!soundOn;els.sound.querySelector('b').textContent=soundOn?'ON':'OFF';audioUpdate();};
+els.purge.onclick=()=>{if(purge(state)){noiseBurst();updateHud();}};
+
+function tune(clientX){if(!playing)return;const edge=Math.max(20,innerWidth*.06);setTuner(state,(clientX-edge)/(innerWidth-edge*2));}
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);tune(e.clientX);});
+canvas.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')tune(e.clientX);});
+addEventListener('keydown',e=>{if(!playing)return;if(e.code==='ArrowLeft'||e.code==='ArrowRight'){e.preventDefault();setTuner(state,state.tuner+(e.code==='ArrowLeft'?-.012:.012));}if(e.code==='Space'){e.preventDefault();if(purge(state))noiseBurst();}});
+
+function noiseBurst(){document.body.classList.add('captured');setTimeout(()=>document.body.classList.remove('captured'),360);if(audio&&soundOn){const o=audio.ac.createOscillator(),g=audio.ac.createGain(),n=audio.ac.currentTime;o.type='sawtooth';o.frequency.setValueAtTime(90,n);o.frequency.exponentialRampToValueAtTime(1200,n+.12);g.gain.setValueAtTime(.08,n);g.gain.exponentialRampToValueAtTime(.0001,n+.18);o.connect(g).connect(audio.master);o.start();o.stop(n+.2);}}
+function captured(event){document.body.classList.remove('captured');void document.body.offsetWidth;document.body.classList.add('captured');setTimeout(()=>document.body.classList.remove('captured'),360);ping(event.rare);}
+function finish(){playing=false;const best=Math.max(Number(localStorage.getItem('dead-air-best')||0),state.score);try{localStorage.setItem('dead-air-best',best)}catch{}const r=rank(state.score);els.rank.textContent=`RANK ${r}`;els.finalScore.textContent=state.score.toLocaleString('en-US');els.finalSignals.textContent=state.captures;els.best.textContent=best.toLocaleString('en-US');els.verdict.textContent=r==='S'?'回収記録の末尾に、あなたの声が含まれている。':r==='A'?'空白町の位置が、地図上に特定された。':r==='B'?'複数の記録が、同じ存在しない町を示している。':r==='C'?'記録の一部は、翌朝には消失していた。':'ノイズの奥で、まだ誰かが待っている。';setTimeout(()=>els.result.classList.add('open'),450);}
+
+function updateHud(){
+  els.time.textContent=state.time.toFixed(1).padStart(4,'0');els.score.textContent=String(state.score).padStart(6,'0');els.frequency.textContent=frequency(state.tuner);els.lock.style.width=`${state.lock*100}%`;els.noise.style.width=`${state.noise*100}%`;els.message.textContent=state.message;els.purge.disabled=state.purge<.999;els.lockLabel.textContent=state.lock>.82?'DO NOT MOVE':state.lock>.2?'SIGNAL FOUND':'SEARCHING';document.body.classList.toggle('danger',state.noise>.82);
 }
-$('#spin').onclick=doSpin;
-document.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&!['BUTTON','INPUT','TEXTAREA','SELECT','A'].includes(document.activeElement.tagName)&&!$('#modal').open){e.preventDefault();doSpin();}});
-$('#auto').onclick=()=>{if(state.research[1]<1)return;state.auto=!state.auto;autoAt=Date.now();save();render();};
-$('#skill').onclick=()=>{if(useSkill(state)){tone(true);toast('星のエール！ 20秒間、スピン報酬3倍');$('#speech').textContent='「私の光も、全部もっていって！ いっけーっ！」';save();render();}};
-$('#sound').onclick=()=>{state.sound=!state.sound;tone();save();render();};
-$('#claim').onclick=()=>{const reward=claim(state);if(reward){toast(`ミッション達成！ +${fmt(reward)} ✧`);tone(true);save();render();}};
-document.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{tab=button.dataset.tab;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===button));render();});
-$('#tab-content').onclick=e=>{const button=e.target.closest('[data-buy]');if(button){if(buy(state,tab,+button.dataset.buy)){tone();save();render();}return;}if(e.target.closest('#rebirth')){modal(`<h2>新しい宇宙へ旅立つ？</h2><p>現在のダスト・設備・研究・周回ミッションはリセットされます。絆・図鑑・累計スピンは残ります。</p><p>星の記憶 <b>+${fmt(prestigeGain(state))}</b> を獲得します。</p><button id="confirm-rebirth" class="secondary full">記憶を受け継いで転生</button>`);$('#confirm-rebirth').onclick=()=>{if(busy){toast('スピンが終わってから転生できます');return;}if(prestige(state)){save();render();$('#modal').close();$('#speech').textContent='「はじめまして……なんてね。ちゃんと覚えてるよ、船長。」';toast('新しい宇宙に到着しました！');log('星の記憶を受け継ぎ、新たな航海へ。');}};}};
-$('#odds').onclick=()=>modal(`<h2>星のめぐりあわせ</h2><p>毎回必ず報酬を獲得。消費する資源はありません。</p>${OUTCOMES.map(o=>`<div class="odds-row"><span>${o.symbols.join(' ')} ${o.name}</span><span>×${o.mult} / ${o.odds}%</span></div>`).join('')}<p>通常時の抽選確率です。大当たりなしで99回続いた場合、次は必ず JACKPOT。フィーバーと星のエールは報酬倍率に乗算されます。</p><p>30スピンごとに、次の5回が5倍。スペースキーでもスピンできます。</p>`);
-$('#settings').onclick=()=>{modal(`<h2>航海の設定</h2><p>進行はこのブラウザに自動保存されます。端末を移すときはセーブを書き出してください。</p><div class="settings-grid"><button class="secondary" id="export">セーブを書き出す</button><label class="secondary" style="text-align:center;cursor:pointer">セーブを読み込む<input id="import" type="file" accept="application/json,.json" hidden></label><button class="secondary danger" id="reset">最初からやり直す</button></div><p>留守中の設備生産は最大8時間。自動スピンは画面を開いている間のみ。音は右上で切り替えできます。</p>`);
- $('#export').onclick=()=>{save();const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='starforge-save.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('セーブを書き出しました');};
- $('#import').onchange=async e=>{const file=e.target.files[0];if(!file)return;if(file.size>100000){toast('セーブファイルが大きすぎます');return;}try{const next=restore(JSON.parse(await file.text()));if(busy){toast('スピンが終わってから読み込んでください');return;}state=next;offline(state);last=Date.now();save();render();$('#modal').close();toast('航海データを読み込みました');}catch{toast('有効なセーブファイルではありません');}};
- $('#reset').onclick=()=>{modal('<h2>すべての記憶を消しますか？</h2><p>絆と転生を含む全進行を失います。必要なら先にセーブを書き出してください。</p><button class="secondary full danger" id="confirm-reset">全データを消して最初から</button>');$('#confirm-reset').onclick=()=>{if(busy)return;state=fresh();last=Date.now();save();render();$('#modal').close();$('#win').textContent='EVERY SPIN, A NEW STAR.';$('#speech').textContent='「さあ、新しい星を見つけよう、船長！」';toast('新しい航海を始めました');};};
-};
-render();
-setInterval(()=>{const now=Date.now();tick(state,(now-last)/1000);last=now;if(state.auto&&state.research[1]&&!document.hidden&&now-autoAt>=autoInterval(state)&&!busy&&!$('#modal').open){autoAt=now;doSpin();}render();},200);
-setInterval(save,5000);document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});window.addEventListener('pagehide',save);
-if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_starforge_progress',description:'現在のゲームの資源・設備・絆を確認する',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({dust:state.dust,productionPerSecond:rate(state),bondLevel:bondLevel(state),spins:state.spins,memories:state.memories})})).catch(()=>{});}catch{}}
+
+function draw(now){
+  const w=innerWidth,h=innerHeight,t=now/1000;ctx.fillStyle='#070907';ctx.fillRect(0,0,w,h);
+  const top=90,bottom=h-(innerWidth<700?97:105),usable=bottom-top;
+  ctx.strokeStyle='#b9c4ad12';ctx.lineWidth=1;for(let i=0;i<=16;i++){const x=w*(.06+i*.055);ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);ctx.stroke();}for(let y=top;y<bottom;y+=48){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  stars.forEach(s=>{ctx.fillStyle=`rgba(216,255,79,${.02+s.a*.05})`;ctx.fillRect(s.x*w,s.y*usable+top,1,1)});
+  const tx=w*(.06+state.target.frequency*.88),needle=w*(.06+state.tuner*.88),dist=Math.abs(state.tuner-state.target.frequency),reveal=Math.max(.02,.16-dist*2.7)+state.lock*.5;
+  ctx.save();ctx.globalAlpha=reveal;ctx.strokeStyle=state.target.rare?'#ff4b39':'#d8ff4f';ctx.lineWidth=1;ctx.beginPath();for(let x=0;x<w;x+=3){const d=Math.abs(x-tx),amp=42*Math.exp(-d*d/5000)*state.target.strength;const y=h*.54+Math.sin(x*.07+t*5+state.target.phase)*amp+Math.sin(x*.013-t)*8;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();ctx.restore();
+  const gradient=ctx.createLinearGradient(0,top,0,bottom);gradient.addColorStop(0,'rgba(216,255,79,0)');gradient.addColorStop(.45,'rgba(216,255,79,.85)');gradient.addColorStop(1,'rgba(216,255,79,0)');ctx.strokeStyle=state.noise>.82?'#ff4b39':gradient;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(needle,top);ctx.lineTo(needle,bottom);ctx.stroke();
+  ctx.fillStyle=state.noise>.82?'#ff4b39':'#d8ff4f';ctx.fillRect(needle-3,h*.54-3,6,6);
+  ctx.globalAlpha=.07+state.noise*.14;ctx.fillStyle='#e7eadc';for(let i=0;i<80;i++){const y=top+Math.random()*usable,x=Math.random()*w,l=Math.random()*40*state.noise;ctx.fillRect(x,y,l,1);}ctx.globalAlpha=1;
+}
+
+function loop(now){
+  const dt=Math.min((now-last)/1000,.1);last=now;if(playing){step(state,dt);if(state.event?.type==='capture')captured(state.event);if(state.event?.type==='end')finish();updateHud();audioUpdate();}draw(now);requestAnimationFrame(loop);
+}
+updateHud();requestAnimationFrame(loop);

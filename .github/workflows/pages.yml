@@ -1,4 +1,4 @@
-name: Deploy STARFORGE to GitHub Pages
+name: Deploy DEAD AIR to GitHub Pages
 
 on:
   push:
